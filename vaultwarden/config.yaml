@@ -1,9 +1,10 @@
 ---
 name: Vaultwarden
-version: dev
+version: 0.28.0
 slug: bitwarden
 description: Open source password management solution
-url: https://github.com/hassio-addons/app-vaultwarden
+url: https://github.com/JayTalge/app-vaultwarden
+image: ghcr.io/jaytalge/bitwarden
 webui: "[PROTO:ssl]://[HOST]:[PORT:7277]"
 init: false
 arch:
