@@ -1,84 +1,111 @@
-# Home Assistant Community App: Vaultwarden
-
-[![GitHub Release][releases-shield]][releases]
-![Project Stage][project-stage-shield]
-[![License][license-shield]](LICENSE.md)
+# Vaultwarden add-on for Home Assistant — 1.37.0 fork
 
 ![Supports aarch64 Architecture][aarch64-shield]
 ![Supports amd64 Architecture][amd64-shield]
+[![License][license-shield]](LICENSE.md)
 
-[![Github Actions][github-actions-shield]][github-actions]
-![Project Maintenance][maintenance-shield]
-[![GitHub Activity][commits-shield]][commits]
+An unofficial fork of [`hassio-addons/app-vaultwarden`][upstream] that ships
+**Vaultwarden 1.37.0**, while the official add-on is stuck on 1.36.0.
 
-[![Discord][discord-shield]][discord]
-[![Community Forum][forum-shield]][forum]
+> [!WARNING]
+> This is a stopgap maintained by one person, not by the Home Assistant
+> Community Add-ons project. It builds your password manager from a personal
+> GHCR image. Read [Should you use this?](#should-you-use-this) before
+> installing, and move back to the official add-on once it is fixed.
 
-[![Sponsor Frenck via GitHub Sponsors][github-sponsors-shield]][github-sponsors]
+## Why this fork exists
 
-[![Support Frenck on Patreon][patreon-shield]][patreon]
+The official add-on is not abandoned — its **build is broken**. Two pinned
+Debian packages were dropped from the Debian 13 mirror, so every build fails:
 
-Open source password management solution.
+```
+E: Version '17.9-0+deb13u1' for 'libpq5' was not found
+E: Version '1.26.3-3+deb13u2' for 'nginx' was not found
+```
 
-## About
+Upstream [PR #424][pr424] already carries the 1.37.0 bump but cannot go green
+until those pins are fixed. [PR #430][pr430] — submitted from this fork — fixes
+them. Once that lands and a release ships, **this fork is obsolete.**
 
-Bitwarden is an open-source password manager that can store sensitive
-information such as website credentials in an encrypted vault.
+## What differs from upstream
 
-The Bitwarden platform offers a variety of client applications including
-a web interface, desktop applications, browser extensions and mobile apps.
+Three lines in `vaultwarden/Dockerfile`, plus the packaging needed to publish
+from a fork:
 
-This app is based upon the lightweight and opensource
-[Vaultwarden][vaultwarden] implementation, allowing you to self-host
-this amazing password manager.
+| Change | Why |
+|---|---|
+| `vaultwarden/server` 1.36.0 → **1.37.0** | the point of the fork |
+| `libpq5` → `17.10-0+deb13u1` | stale pin, gone from the mirror |
+| `nginx` → `1.26.3-3+deb13u7` | stale pin, gone from the mirror |
+| `image:` → `ghcr.io/jaytalge/bitwarden` | pull a prebuilt image, not a local build |
+| `repository.json` added | required for HA to accept this as a custom repository |
+| `.github/workflows/deploy.yaml` replaced | the shared `hassio-addons/workflows` calls cannot run from a fork |
 
-Password theft is a serious problem. The websites and apps that you use are
-under attack every day. Security breaches occur and your passwords are stolen.
-When you reuse the same passwords everywhere hackers can easily access your
-email, bank, and other important accounts. USE A PASSWORD MANAGER!
+Verify the code difference yourself:
 
-[:books: Read the full app documentation][docs]
+```sh
+git clone https://github.com/JayTalge/app-vaultwarden
+cd app-vaultwarden
+git remote add upstream https://github.com/hassio-addons/app-vaultwarden
+git fetch upstream
+git diff upstream/main -- vaultwarden/Dockerfile
+```
 
-![Bitwarden Preview](images/screenshot.png)
+Images are built by [GitHub Actions](.github/workflows/deploy.yaml) on push to
+`main` and published to `ghcr.io/jaytalge/bitwarden` for `amd64` and `aarch64`.
+
+## Should you use this?
+
+It is a password manager, so decide deliberately.
+
+Using this fork means trusting an image built by an individual rather than by
+the Community Add-ons project. The source difference is three lines and you can
+audit it in under a minute with the commands above — but the build pipeline,
+the GHCR account, and the release process are all mine, not theirs.
+
+Waiting for the official fix is a legitimate choice. If you need 1.37.0 now,
+this gets you there, and [MIGRATE-BACK.md](MIGRATE-BACK.md) gets you home.
+
+## Install
+
+Full instructions, including migrating an existing vault:
+**[INSTALL.md](INSTALL.md)**
+
+The short version:
+
+1. Settings → Add-ons → Add-on Store → **⋮** → **Repositories**
+2. Add `https://github.com/JayTalge/app-vaultwarden`
+3. Install **Vaultwarden** from the new *JayTalge Vaultwarden Add-on* section —
+   not the identically named one under *Home Assistant Community Add-ons*
+4. **Back up first.** Stop the official add-on if it is running — both bind
+   port `7277/tcp`
+5. This is a separate add-on with its own data directory. Existing vault data
+   does **not** follow automatically; see [INSTALL.md](INSTALL.md) step 5
+
+## Moving back to the official add-on
+
+When upstream ships a release with 1.37.0 or newer, switch back:
+**[MIGRATE-BACK.md](MIGRATE-BACK.md)**
+
+Gate on a released version, not on merged PRs — merging changes nothing in your
+add-on store until a release goes out.
 
 ## Support
 
-Got questions?
+**Do not raise issues about this fork with upstream.** Their Discord, forum
+thread, and issue tracker do not cover this image, and reporting fork problems
+there wastes maintainer time on something they did not ship.
 
-You have several options to get them answered:
+- Problems with **this fork**: [open an issue here][issue]
+- Problems with the **official add-on**: [upstream issues][upstream-issues]
+- Problems with **Vaultwarden itself**: [dani-garcia/vaultwarden][vaultwarden]
 
-- The [Home Assistant Community Apps Discord chat server][discord] for app
-  support and feature requests.
-- The [Home Assistant Discord chat server][discord-ha] for general Home
-  Assistant discussions and questions.
-- The Home Assistant [Community Forum][forum].
-- Join the [Reddit subreddit][reddit] in [/r/homeassistant][reddit]
+## Credits
 
-You could also [open an issue here][issue] GitHub.
-
-## Contributing
-
-This is an active open-source project. We are always open to people who want to
-use the code or contribute to it.
-
-We have set up a separate document containing our
-[contribution guidelines](.github/CONTRIBUTING.md).
-
-Thank you for being involved! :heart_eyes:
-
-## Authors & contributors
-
-The original setup of this repository is by [Franck Nijhof][frenck].
-
-For a full list of all authors and contributors,
-check [the contributor's page][contributors].
-
-## We have got some Home Assistant apps for you
-
-Want some more functionality to your Home Assistant instance?
-
-We have created multiple apps for Home Assistant. For a full list, check out
-our [GitHub Repository][repository].
+All the real work is [Franck Nijhof][frenck]'s and the
+[Home Assistant Community Add-ons][upstream-org] contributors'. This fork adds
+a version bump and two package pins. Upstream documentation for the add-on's
+options and configuration still applies: [DOCS.md](vaultwarden/DOCS.md).
 
 ## License
 
@@ -106,28 +133,12 @@ SOFTWARE.
 
 [aarch64-shield]: https://img.shields.io/badge/aarch64-yes-green.svg
 [amd64-shield]: https://img.shields.io/badge/amd64-yes-green.svg
-[commits-shield]: https://img.shields.io/github/commit-activity/y/hassio-addons/app-vaultwarden.svg
-[commits]: https://github.com/hassio-addons/app-vaultwarden/commits/main
-[contributors]: https://github.com/hassio-addons/app-vaultwarden/graphs/contributors
-[discord-ha]: https://discord.gg/c5DvZ4e
-[discord-shield]: https://img.shields.io/discord/478094546522079232.svg
-[discord]: https://discord.me/hassioaddons
-[docs]: https://github.com/hassio-addons/app-vaultwarden/blob/main/vaultwarden/DOCS.md
-[forum-shield]: https://img.shields.io/badge/community-forum-brightgreen.svg
-[forum]: https://community.home-assistant.io/t/home-assistant-community-add-on-bitwarden-rs/115573?u=frenck
 [frenck]: https://github.com/frenck
-[github-actions-shield]: https://github.com/hassio-addons/app-vaultwarden/workflows/CI/badge.svg
-[github-actions]: https://github.com/hassio-addons/app-vaultwarden/actions
-[github-sponsors-shield]: https://frenck.dev/wp-content/uploads/2019/12/github_sponsor.png
-[github-sponsors]: https://github.com/sponsors/frenck
-[issue]: https://github.com/hassio-addons/app-vaultwarden/issues
-[license-shield]: https://img.shields.io/github/license/hassio-addons/app-vaultwarden.svg
-[maintenance-shield]: https://img.shields.io/maintenance/yes/2026.svg
-[patreon-shield]: https://frenck.dev/wp-content/uploads/2019/12/patreon.png
-[patreon]: https://www.patreon.com/frenck
-[project-stage-shield]: https://img.shields.io/badge/project%20stage-experimental-yellow.svg
-[reddit]: https://reddit.com/r/homeassistant
-[releases-shield]: https://img.shields.io/github/release/hassio-addons/app-vaultwarden.svg
-[releases]: https://github.com/hassio-addons/app-vaultwarden/releases
-[repository]: https://github.com/hassio-addons/repository
+[issue]: https://github.com/JayTalge/app-vaultwarden/issues
+[license-shield]: https://img.shields.io/github/license/JayTalge/app-vaultwarden.svg
+[pr424]: https://github.com/hassio-addons/app-vaultwarden/pull/424
+[pr430]: https://github.com/hassio-addons/app-vaultwarden/pull/430
+[upstream-issues]: https://github.com/hassio-addons/app-vaultwarden/issues
+[upstream-org]: https://github.com/hassio-addons
+[upstream]: https://github.com/hassio-addons/app-vaultwarden
 [vaultwarden]: https://github.com/dani-garcia/vaultwarden
