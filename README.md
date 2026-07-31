@@ -39,7 +39,7 @@ from a fork:
 | `nginx` → `1.26.3-3+deb13u7` | stale pin, gone from the mirror |
 | `image:` → `ghcr.io/jaytalge/bitwarden` | pull a prebuilt image, not a local build |
 | `repository.json` added | required for HA to accept this as a custom repository |
-| `.github/workflows/deploy.yaml` replaced | the shared `hassio-addons/workflows` calls cannot run from a fork |
+| `.github/workflows/*` rewritten | the shared `hassio-addons/workflows` calls cannot run from a fork |
 
 Verify the code difference yourself:
 
@@ -54,12 +54,23 @@ git diff upstream/main -- vaultwarden/Dockerfile
 Images are built by [GitHub Actions](.github/workflows/deploy.yaml) on push to
 `main` and published to `ghcr.io/jaytalge/bitwarden` for `amd64` and `aarch64`.
 
-New Vaultwarden releases are picked up on their own: a daily
-[update workflow](.github/workflows/update.yaml) compares the pinned version
-against the latest upstream release, bumps the pin, the add-on version and this
-README, and builds both architectures. Only if that build succeeds does it
-commit to `main` and trigger the publish — a release that breaks the build
-leaves `main` untouched.
+New Vaultwarden releases are picked up on their own, the same way upstream does
+it — [Renovate][renovate] opens a pull request bumping the pinned
+`vaultwarden/server` tag, and automerges it once the build passes:
+
+1. **Renovate** raises the PR ([config](.github/renovate.json)). It also keeps
+   the pinned Debian packages current — stale `libpq5` and `nginx` pins are
+   what broke upstream in the first place.
+2. **[CI](.github/workflows/ci.yaml)** builds the add-on for `amd64` and
+   `aarch64` and throws it away. Renovate holds the PR until this is green, so
+   a release that does not build never reaches `main`.
+3. **[Stamp](.github/workflows/stamp.yaml)** raises the add-on version, writes
+   the changelog entry and updates this README. Renovate only touches the
+   Dockerfile, and without this step the add-on store would never offer an
+   update.
+4. **[Deploy](.github/workflows/deploy.yaml)** publishes to GHCR.
+
+Major Vaultwarden releases are deliberately left for a human to merge.
 
 ## Should you use this?
 
@@ -144,6 +155,7 @@ SOFTWARE.
 [issue]: https://github.com/JayTalge/app-vaultwarden/issues
 [license-shield]: https://img.shields.io/github/license/JayTalge/app-vaultwarden.svg
 [pr424]: https://github.com/hassio-addons/app-vaultwarden/pull/424
+[renovate]: https://github.com/apps/renovate
 [pr430]: https://github.com/hassio-addons/app-vaultwarden/pull/430
 [upstream-issues]: https://github.com/hassio-addons/app-vaultwarden/issues
 [upstream-org]: https://github.com/hassio-addons
