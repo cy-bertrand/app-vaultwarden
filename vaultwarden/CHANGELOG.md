@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.28.1
+
+- ⬆️ Update Vaultwarden to 1.37.1
+
 ## 0.28.0
 
 - ⬆️ Update Vaultwarden to 1.37.0

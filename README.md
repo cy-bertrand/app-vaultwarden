@@ -1,11 +1,11 @@
-# Vaultwarden add-on for Home Assistant — 1.37.0 fork
+# Vaultwarden add-on for Home Assistant — 1.37.1 fork
 
 ![Supports aarch64 Architecture][aarch64-shield]
 ![Supports amd64 Architecture][amd64-shield]
 [![License][license-shield]](LICENSE.md)
 
 An unofficial fork of [`hassio-addons/app-vaultwarden`][upstream] that ships
-**Vaultwarden 1.37.0**, while the official add-on is stuck on 1.36.0.
+**Vaultwarden 1.37.1**, while the official add-on is stuck on 1.36.0.
 
 > [!WARNING]
 > This is a stopgap maintained by one person, not by the Home Assistant
@@ -34,7 +34,7 @@ from a fork:
 
 | Change | Why |
 |---|---|
-| `vaultwarden/server` 1.36.0 → **1.37.0** | the point of the fork |
+| `vaultwarden/server` 1.36.0 → **1.37.1** | the point of the fork |
 | `libpq5` → `17.10-0+deb13u1` | stale pin, gone from the mirror |
 | `nginx` → `1.26.3-3+deb13u7` | stale pin, gone from the mirror |
 | `image:` → `ghcr.io/jaytalge/bitwarden` | pull a prebuilt image, not a local build |
@@ -91,7 +91,7 @@ The short version:
 
 ## Moving back to the official add-on
 
-When upstream ships a release with 1.37.0 or newer, switch back:
+When upstream ships a release with 1.37.1 or newer, switch back:
 **[MIGRATE-BACK.md](MIGRATE-BACK.md)**
 
 Gate on a released version, not on merged PRs — merging changes nothing in your
