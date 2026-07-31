@@ -1,0 +1,135 @@
+---
+# Watches for new Vaultwarden releases and lands them on main by itself.
+#
+# The bump is only committed after the add-on image has been built for both
+# architectures, so a release that breaks the build (a stale Debian pin, an
+# upstream layout change) fails this run and leaves main untouched.
+#
+# Pushing with GITHUB_TOKEN does not trigger other workflows, so the publish is
+# kicked off explicitly with a workflow_dispatch of deploy.yaml.
+name: Update
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Vaultwarden version (default: latest upstream release)"
+        required: false
+      dry_run:
+        description: Build and verify, but do not commit
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: update
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      needed: ${{ steps.target.outputs.needed }}
+      current: ${{ steps.target.outputs.current }}
+      version: ${{ steps.target.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve the target version
+        id: target
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_VERSION: ${{ github.event.inputs.version }}
+        run: |
+          version="${INPUT_VERSION:-}"
+          if [[ -z "${version}" ]]; then
+            version=$(gh api repos/dani-garcia/vaultwarden/releases/latest \
+              --jq '.tag_name')
+          fi
+          version="${version#v}"
+          current=$(sed -n \
+            's|^FROM "vaultwarden/server:\(.*\)" AS vaultwarden$|\1|p' \
+            vaultwarden/Dockerfile)
+
+          echo "current=${current}" >> "$GITHUB_OUTPUT"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+          if [[ "${version}" == "${current}" ]]; then
+            echo "needed=false" >> "$GITHUB_OUTPUT"
+            echo "Up to date on Vaultwarden ${current}." \
+              >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          # A GitHub release can land before the Docker Hub tag is pushed.
+          # Stop without failing; the next scheduled run picks it up.
+          tags="https://hub.docker.com/v2/repositories/vaultwarden/server/tags"
+          if ! curl -sfSL -o /dev/null "${tags}/${version}"; then
+            echo "needed=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::vaultwarden/server:${version} is not on Docker Hub yet"
+            echo "Vaultwarden ${version} released, image not published yet." \
+              >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+
+          echo "needed=true" >> "$GITHUB_OUTPUT"
+          echo "Vaultwarden ${current} -> ${version}" >> "$GITHUB_STEP_SUMMARY"
+
+  update:
+    needs: check
+    if: needs.check.outputs.needed == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Apply the bump
+        id: bump
+        run: .github/scripts/bump-vaultwarden.sh "${{ needs.check.outputs.version }}"
+
+      - uses: docker/setup-qemu-action@v3
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Verify the build
+        uses: docker/build-push-action@v6
+        with:
+          context: vaultwarden
+          platforms: linux/amd64,linux/arm64
+          build-args: |
+            BUILD_FROM=ghcr.io/hassio-addons/debian-base:9.3.0
+            BUILD_DATE=${{ github.event.repository.updated_at }}
+            BUILD_DESCRIPTION=Open source password management solution
+            BUILD_NAME=Vaultwarden
+            BUILD_REF=${{ github.sha }}
+            BUILD_REPOSITORY=${{ github.repository }}
+            BUILD_VERSION=${{ steps.bump.outputs.addon_version }}
+          push: false
+
+      - name: Commit and push
+        id: commit
+        if: github.event.inputs.dry_run != 'true'
+        env:
+          CURRENT: ${{ needs.check.outputs.current }}
+          VERSION: ${{ needs.check.outputs.version }}
+          ADDON_VERSION: ${{ steps.bump.outputs.addon_version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email \
+            "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit \
+            -m "⬆️ Update Vaultwarden to ${VERSION}" \
+            -m "Vaultwarden ${CURRENT} -> ${VERSION}, add-on ${ADDON_VERSION}." \
+            -m "Both architectures built before this was committed." \
+            -- README.md vaultwarden/Dockerfile vaultwarden/config.yaml \
+            vaultwarden/CHANGELOG.md
+          git push
+
+      - name: Publish the add-on image
+        if: steps.commit.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run deploy.yaml --ref "${{ github.ref_name }}"

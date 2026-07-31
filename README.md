@@ -54,6 +54,13 @@ git diff upstream/main -- vaultwarden/Dockerfile
 Images are built by [GitHub Actions](.github/workflows/deploy.yaml) on push to
 `main` and published to `ghcr.io/jaytalge/bitwarden` for `amd64` and `aarch64`.
 
+New Vaultwarden releases are picked up on their own: a daily
+[update workflow](.github/workflows/update.yaml) compares the pinned version
+against the latest upstream release, bumps the pin, the add-on version and this
+README, and builds both architectures. Only if that build succeeds does it
+commit to `main` and trigger the publish — a release that breaks the build
+leaves `main` untouched.
+
 ## Should you use this?
 
 It is a password manager, so decide deliberately.
