@@ -118,6 +118,8 @@ add-on (**DST**).
 > `docker inspect addon_..._bitwarden` will fail right now. That is expected —
 > the data directory persists independently of the container.
 
+**In case you can't locate the date jump to [section 5c below.](#5c-alternative-way-to-copy-the-data)**
+
 ### 5b. Copy the data
 
 Substitute your own slugs into `SRC` and `DST`:
@@ -152,6 +154,53 @@ Three things it does deliberately:
   attachment files need their permissions intact.
 
 **The two md5 hashes must match.** If they do not, stop and restore your backup.
+
+When done, jump to [section 6](#6-start-and-verify)
+
+
+### 5c. Alternative way to copy the data
+
+If you can't locate your data directories you can try this workaround :
+
+- Restart the old add-on (the official app) (so directories are accesibles through docker)
+  
+- copy the data into a temporary directory 
+```
+mkdir -p /tmp/vaultwarden-backup
+docker cp app_a0d7b954_bitwarden:/data/. /tmp/vaultwarden-backup/
+```
+
+- stop the official add-on
+```
+ha apps stop a0d7b954_bitwarden
+```
+(or through the home assistant interface)
+
+- start the new add-on
+```
+ha apps start ef847b1a_bitwarden
+```
+(or through the home assistant interface)
+(wait 2 minutes the be sure the docker starts)
+
+- copy the data backup to the new add-on
+```
+docker cp /tmp/vaultwarden-backup/. app_ef847b1a_bitwarden:/data/
+```
+
+- restart the new add-on
+```
+ha apps restart ef847b1a_bitwarden
+```
+(or stop it and restart it through the HA interface)
+
+Check evreything is OK by simpluy using you bitwarden apps, then you can delete the tmp directory (your old add-on still contains your original data in case of...)
+```
+rm -rf /tmp/vaultwarden-backup
+```
+
+your all set, go to [section 7](#7-afterwards)
+(to migrate back in the future just use the same principles inverting the ha apps numbers app_a0d7b954_bitwarden <-> app_ef847b1a_bitwarden
 
 ## 6. Start and verify
 
